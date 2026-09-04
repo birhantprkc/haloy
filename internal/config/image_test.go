@@ -80,22 +80,6 @@ func TestImage_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid image with registry source",
-			image: Image{
-				Repository: "nginx",
-				Tag:        "1.21",
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid image with local source",
-			image: Image{
-				Repository: "myapp",
-				Tag:        "latest",
-			},
-			wantErr: false,
-		},
-		{
 			name: "valid image with pull policy",
 			image: Image{
 				Repository: "postgres",

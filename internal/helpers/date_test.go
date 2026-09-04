@@ -5,7 +5,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/oklog/ulid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,24 +53,12 @@ func TestGetTimestampFromDeploymentID(t *testing.T) {
 }
 
 func TestGetTimestampFromDeploymentID_ValidULID(t *testing.T) {
-	// Create a real ULID for testing
-	now := time.Now()
-	entropy := make([]byte, 10)
-	// Fill with zeros for predictable test
-	for i := range entropy {
-		entropy[i] = 0
-	}
-
-	ulidValue, err := ulid.New(ulid.Timestamp(now), &simpleEntropy{data: entropy})
+	result, err := GetTimestampFromDeploymentID("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 	require.NoError(t, err)
-
-	result, err := GetTimestampFromDeploymentID(ulidValue.String())
-	assert.NoError(t, err)
-	assert.False(t, result.IsZero())
-
-	// Should be close to the original time (within 1 second)
-	diff := result.Sub(now)
-	assert.True(t, diff >= -time.Second && diff <= time.Second)
+	want := time.Date(2016, time.July, 30, 23, 54, 10, 259_000_000, time.UTC)
+	if !result.Equal(want) {
+		t.Fatalf("GetTimestampFromDeploymentID() = %v, want %v", result, want)
+	}
 }
 
 func TestFormatTime(t *testing.T) {
@@ -112,21 +99,4 @@ func TestFormatTime(t *testing.T) {
 			})
 		})
 	}
-}
-
-// Simple entropy source for testing
-type simpleEntropy struct {
-	data []byte
-	pos  int
-}
-
-func (e *simpleEntropy) Read(p []byte) (n int, err error) {
-	for i := range p {
-		if e.pos >= len(e.data) {
-			e.pos = 0
-		}
-		p[i] = e.data[e.pos]
-		e.pos++
-	}
-	return len(p), nil
 }
