@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/haloydev/haloy/internal/constants"
 	"github.com/haloydev/haloy/internal/helpers"
@@ -53,15 +52,6 @@ func (cc *ClientConfig) DeleteServer(url string) error {
 	}
 	delete(cc.Servers, normalizedURL)
 	return nil
-}
-
-func (cc *ClientConfig) ListServers() []string {
-	var urls []string
-	for url := range cc.Servers {
-		urls = append(urls, url)
-	}
-	sort.Strings(urls)
-	return urls
 }
 
 func LoadClientConfig(path string) (*ClientConfig, error) {

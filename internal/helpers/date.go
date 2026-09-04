@@ -20,21 +20,7 @@ func GetTimestampFromDeploymentID(deploymentID string) (time.Time, error) {
 // FormatTime formats a time.Time in a simple, CLI-friendly format
 // similar to Docker and Kubernetes tools (e.g., "2 minutes ago", "3 hours ago", "2 days ago")
 func FormatTime(t time.Time) string {
-	return FormatTimeWithLocation(t, time.Local)
-}
-
-// FormatDateString formats a date string in a simple, CLI-friendly format
-// similar to Docker and Kubernetes tools (e.g., "2 minutes ago", "3 hours ago", "2 days ago")
-func FormatDateString(dateString string) (string, error) {
-	return FormatDateStringWithLocation(dateString, time.Local)
-}
-
-// FormatTimeWithLocation formats a time.Time for the specified timezone
-func FormatTimeWithLocation(t time.Time, loc *time.Location) string {
-	// Convert to specified location
-	tInLoc := t.In(loc)
-	nowInLoc := time.Now().In(loc)
-	elapsed := nowInLoc.Sub(tInLoc)
+	elapsed := time.Since(t)
 
 	// Handle future dates
 	if elapsed < 0 {
@@ -44,34 +30,6 @@ func FormatTimeWithLocation(t time.Time, loc *time.Location) string {
 
 	// Format like Docker/Kubernetes
 	return formatDuration(elapsed) + " ago"
-}
-
-// FormatDateStringWithLocation formats a date string for the specified timezone
-func FormatDateStringWithLocation(dateString string, loc *time.Location) (string, error) {
-	var t time.Time
-	var err error
-
-	switch len(dateString) {
-	case 14:
-		t, err = time.ParseInLocation("20060102150405", dateString, loc)
-	case 16: // with centiseconds
-		t, err = time.ParseInLocation("20060102150405", dateString[:14], loc)
-	default:
-		// Try RFC3339 and other formats
-		layouts := []string{time.RFC3339, time.RFC3339Nano}
-		for _, layout := range layouts {
-			t, err = time.Parse(layout, dateString)
-			if err == nil {
-				break
-			}
-		}
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to parse date string %q: %w", dateString, err)
-	}
-
-	// Delegate to FormatTimeWithLocation for the actual formatting
-	return FormatTimeWithLocation(t, loc), nil
 }
 
 func formatDuration(d time.Duration) string {

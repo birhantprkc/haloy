@@ -167,18 +167,6 @@ func (m *HealthMonitor) logStateChange(result Result) {
 	}
 }
 
-// ForceCheck triggers an immediate health check round, bypassing the ticker.
-// This is useful after deployment changes to quickly update health state.
-func (m *HealthMonitor) ForceCheck() {
-	m.mu.Lock()
-	running := m.running
-	m.mu.Unlock()
-
-	if running {
-		m.runCheck()
-	}
-}
-
 // GetHealthyTargets returns the current list of healthy targets.
 func (m *HealthMonitor) GetHealthyTargets() []Target {
 	return m.stateTracker.GetHealthyTargets()
