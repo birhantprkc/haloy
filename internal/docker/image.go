@@ -496,29 +496,3 @@ func LoadImageFromTar(ctx context.Context, cli *client.Client, tarPath string) e
 
 	return nil
 }
-
-func PushImage(ctx context.Context, cli *client.Client, imageRef string, imageConfig *config.Image) error {
-	if imageConfig.RegistryAuth == nil {
-		return fmt.Errorf("no registry authentication configured for image %s", imageRef)
-	}
-
-	authStr, err := getRegistryAuthString(imageConfig)
-	if err != nil {
-		return fmt.Errorf("failed to get registry auth for %s: %w", imageRef, err)
-	}
-
-	pushResponse, err := cli.ImagePush(ctx, imageRef, image.PushOptions{
-		RegistryAuth: authStr,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to push image %s: %w", imageRef, err)
-	}
-	defer pushResponse.Close()
-
-	// Optional: Parse and display push progress
-	if _, err := io.Copy(io.Discard, pushResponse); err != nil {
-		return fmt.Errorf("error reading push response: %w", err)
-	}
-
-	return nil
-}

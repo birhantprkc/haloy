@@ -10,8 +10,3 @@ import (
 func EnsureDir(dirPath string) error {
 	return os.MkdirAll(dirPath, constants.ModeDirPrivate)
 }
-
-// EnsureDirWithMode creates the directory with custom permissions.
-func EnsureDirWithMode(dirPath string, mode os.FileMode) error {
-	return os.MkdirAll(dirPath, mode)
-}

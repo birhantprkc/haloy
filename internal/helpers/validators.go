@@ -2,15 +2,9 @@ package helpers
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
-
-func IsValidEmail(email string) bool {
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	return emailRegex.MatchString(email)
-}
 
 func IsValidDomain(domain string) error {
 	if len(domain) == 0 || len(domain) > 253 {

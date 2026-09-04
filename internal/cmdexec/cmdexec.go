@@ -80,24 +80,6 @@ func RunCommand(ctx context.Context, command, workDir string) error {
 	return cmd.Run()
 }
 
-// RunShellCommandWithOutput - shell command that returns output
-func RunCommandWithOutput(ctx context.Context, command, workDir string) (string, error) {
-	if strings.TrimSpace(command) == "" {
-		return "", fmt.Errorf("empty command")
-	}
-
-	shell, flag := findShell()
-	cmd := exec.CommandContext(ctx, shell, flag, command)
-	cmd.Dir = workDir
-	cmd.Env = os.Environ()
-
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("shell command failed: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
 // RunCLICommandInDir executes a CLI command directly with streamed output and no shell parsing.
 func RunCLICommandInDir(ctx context.Context, workDir, name string, args ...string) error {
 	if strings.TrimSpace(name) == "" {

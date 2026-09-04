@@ -72,9 +72,3 @@ func HaloyConfigDir() (string, error) {
 	}
 	return filepath.Join(home, constants.DefaultHaloyConfigDir), nil
 }
-
-// BinDir returns the directory where haloy binaries are installed.
-// Defaults to /usr/local/bin.
-func BinDir() (string, error) {
-	return constants.SystemBinDir, nil
-}

@@ -36,7 +36,6 @@ const (
 	// Default directories (system-wide installation)
 	SystemDataDir          = "/var/lib/haloy"
 	DefaultHaloydConfigDir = "/etc/haloy"
-	SystemBinDir           = "/usr/local/bin"
 
 	// Default config directory for haloy CLI
 	DefaultHaloyConfigDir = ".config/haloy"

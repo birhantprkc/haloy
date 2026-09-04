@@ -18,11 +18,6 @@ import (
 
 const certPEMExt = ".pem"
 
-// restartCommand returns the appropriate command to restart haloyd based on the init system
-func restartCommand() string {
-	return helpers.RestartCommand()
-}
-
 func configCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
@@ -146,7 +141,7 @@ Note: After changing configuration, restart haloyd for changes to take effect.`,
 				return fmt.Errorf("unknown config key: %s", key)
 			}
 
-			ui.Info("Restart haloyd for changes to take effect: %s", restartCommand())
+			ui.Info("Restart haloyd for changes to take effect: %s", helpers.RestartCommand())
 
 			return postSaveErr
 		},
@@ -166,7 +161,7 @@ Certificate reloads happen only when explicitly triggered.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// This command would need to communicate with the running haloyd
 			// For now, we'll just print a message suggesting a restart
-			ui.Info("To reload certificates, restart haloyd: %s", restartCommand())
+			ui.Info("To reload certificates, restart haloyd: %s", helpers.RestartCommand())
 			ui.Info("Certificate reloads occur only when explicitly triggered.")
 			return nil
 		},
@@ -209,7 +204,7 @@ the token in your haloy CLI configuration after running this command.`,
 			}
 
 			ui.Success("New API token generated: %s", newToken)
-			ui.Info("Restart haloyd for the new token to take effect: %s", restartCommand())
+			ui.Info("Restart haloyd for the new token to take effect: %s", helpers.RestartCommand())
 			ui.Info("Update your haloy CLI with: haloy server add <server-name> %s --force", newToken)
 
 			return nil
