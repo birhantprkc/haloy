@@ -78,34 +78,6 @@ func TestHaloydConfig_Validate(t *testing.T) {
 	}
 }
 
-func TestHaloydConfig_Normalize(t *testing.T) {
-	tests := []struct {
-		name   string
-		config HaloydConfig
-	}{
-		{
-			name:   "empty config",
-			config: HaloydConfig{},
-		},
-		{
-			name: "config with values",
-			config: HaloydConfig{
-				API: HaloydAPIConfig{Domain: "api.example.com"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.config.Normalize()
-			if result != &tt.config {
-				t.Errorf("Normalize() should return the same config instance")
-			}
-			// Currently Normalize() doesn't modify anything, but test is here for future changes
-		})
-	}
-}
-
 func TestLoadHaloydConfig(t *testing.T) {
 	// Create temporary directory for test files
 	tempDir := t.TempDir()

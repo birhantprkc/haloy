@@ -86,12 +86,6 @@ func (c *HealthMonitorConfig) GetRise() int {
 	return c.Rise
 }
 
-// Normalize sets default values for HaloydConfig
-func (mc *HaloydConfig) Normalize() *HaloydConfig {
-	// Add any defaults if needed in the future
-	return mc
-}
-
 func (mc *HaloydConfig) Validate() error {
 	if mc.API.Domain != "" {
 		if err := helpers.IsValidDomain(mc.API.Domain); err != nil {
