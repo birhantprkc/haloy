@@ -2,9 +2,8 @@ package config
 
 import (
 	"reflect"
+	"strings"
 	"testing"
-
-	"github.com/haloydev/haloy/internal/helpers"
 )
 
 func TestImage_ImageRef(t *testing.T) {
@@ -217,7 +216,7 @@ func TestImage_Validate(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Validate() expected error but got none")
-				} else if tt.errMsg != "" && !helpers.Contains(err.Error(), tt.errMsg) {
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("Validate() error = %v, expected to contain %v", err, tt.errMsg)
 				}
 			} else {
@@ -366,7 +365,7 @@ func TestImageHistory_Validate(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Validate() expected error but got none")
-				} else if tt.errMsg != "" && !helpers.Contains(err.Error(), tt.errMsg) {
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("Validate() error = %v, expected to contain %v", err, tt.errMsg)
 				}
 			} else {
@@ -498,7 +497,7 @@ func TestBuildConfig_Validate(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Validate() expected error but got none")
-				} else if tt.errMsg != "" && !helpers.Contains(err.Error(), tt.errMsg) {
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("Validate() error = %v, expected to contain %v", err, tt.errMsg)
 				}
 			} else {
@@ -580,7 +579,7 @@ func TestImage_Validate_WithBuildConfig(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Validate() expected error but got none")
-				} else if tt.errMsg != "" && !helpers.Contains(err.Error(), tt.errMsg) {
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("Validate() error = %v, expected to contain %v", err, tt.errMsg)
 				}
 			} else {

@@ -3,10 +3,10 @@ package configloader
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/haloydev/haloy/internal/config"
-	"github.com/haloydev/haloy/internal/helpers"
 )
 
 func TestMergeToTarget(t *testing.T) {
@@ -732,7 +732,7 @@ func TestMergeImage(t *testing.T) {
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("mergeImage() expected error but got none")
-				} else if tt.errMsg != "" && !helpers.Contains(err.Error(), tt.errMsg) {
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("mergeImage() error = %v, expected to contain %v", err, tt.errMsg)
 				}
 			} else {
