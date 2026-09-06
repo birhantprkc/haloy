@@ -116,8 +116,14 @@ type Proxy struct {
 	// fatalCh receives listener errors that occur after Start returned.
 	fatalCh chan error
 
-	// Transport for backend connections with connection pooling
+	// transport carries application and ACME traffic. Its response header
+	// timeout is short so a stalled app backend fails fast.
 	transport *http.Transport
+
+	// apiTransport carries control-plane traffic. Some API handlers (image
+	// upload and assemble) do minutes of synchronous work before writing any
+	// response, so this transport must not use the application timeout.
+	apiTransport *http.Transport
 
 	// For graceful shutdown
 	shutdownMu sync.Mutex
@@ -136,25 +142,47 @@ type CertLoader interface {
 	GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error)
 }
 
+const (
+	// appResponseHeaderTimeout bounds how long an application backend may take
+	// to start responding. Backends stream after the header, so this does not
+	// limit response length.
+	appResponseHeaderTimeout = 60 * time.Second
+
+	// apiResponseHeaderTimeout bounds the control plane's slowest synchronous
+	// handler. haloyd loads uploaded images into Docker before responding and
+	// allows that to take up to 10 minutes (imageLoadTimeout in internal/api),
+	// so this must stay above that budget or the proxy answers 503 while the
+	// load is still succeeding.
+	apiResponseHeaderTimeout = 15 * time.Minute
+)
+
+// newBackendTransport builds a pooled HTTP/1.1 transport for loopback and
+// container backends. Only the response header timeout differs between the
+// application and control-plane transports.
+func newBackendTransport(responseHeaderTimeout time.Duration) *http.Transport {
+	return &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: responseHeaderTimeout,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
 // New creates a new Proxy instance.
 func New(logger *slog.Logger, certLoader CertLoader) *Proxy {
 	p := &Proxy{
-		logger:     logger,
-		certLoader: certLoader,
-		fatalCh:    make(chan error, 2),
-		transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).DialContext,
-			MaxIdleConns:          100,
-			MaxIdleConnsPerHost:   10,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 60 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-		hijackConns: make(map[net.Conn]struct{}),
+		logger:       logger,
+		certLoader:   certLoader,
+		fatalCh:      make(chan error, 2),
+		transport:    newBackendTransport(appResponseHeaderTimeout),
+		apiTransport: newBackendTransport(apiResponseHeaderTimeout),
+		hijackConns:  make(map[net.Conn]struct{}),
 	}
 
 	// Initialize with empty config
@@ -303,6 +331,7 @@ func (p *Proxy) Shutdown(ctx context.Context) error {
 	}
 
 	p.transport.CloseIdleConnections()
+	p.apiTransport.CloseIdleConnections()
 
 	if len(errs) > 0 {
 		return fmt.Errorf("shutdown errors: %v", errs)
@@ -529,7 +558,7 @@ func (p *Proxy) proxyToAPIBackend(w http.ResponseWriter, r *http.Request, startT
 			pr.Out.Header.Del("X-Real-IP")
 			pr.Out.Host = r.Host
 		},
-		Transport:     p.transport,
+		Transport:     p.apiTransport,
 		FlushInterval: -1, // API streams deploy logs via SSE
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			p.logger.Error("API proxy error",

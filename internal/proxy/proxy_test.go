@@ -516,3 +516,61 @@ func TestStartAndShutdown(t *testing.T) {
 		t.Fatalf("Shutdown() error = %v", err)
 	}
 }
+
+// The control plane can spend minutes loading an uploaded image before it
+// writes a response, so API traffic must not share the application backend's
+// response header timeout.
+func TestProxyToAPIBackend_NotBoundByAppResponseHeaderTimeout(t *testing.T) {
+	const backendDelay = 200 * time.Millisecond
+	slowBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(backendDelay)
+		io.WriteString(w, "done")
+	}))
+	defer slowBackend.Close()
+
+	backendURL, err := url.Parse(slowBackend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, port, err := net.SplitHostPort(backendURL.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := newTestProxy()
+	// Shrink the app timeout far below the backend delay so the test proves the
+	// API path uses a different transport, not just a longer timeout.
+	p.transport.ResponseHeaderTimeout = backendDelay / 4
+
+	// imageLoadTimeout in internal/api is 10 minutes; the API transport must
+	// wait at least that long or image uploads fail at the proxy.
+	if p.apiTransport.ResponseHeaderTimeout < 10*time.Minute {
+		t.Fatalf("apiTransport.ResponseHeaderTimeout = %s, want >= 10m to cover image loads", p.apiTransport.ResponseHeaderTimeout)
+	}
+
+	rb := NewRouteBuilder()
+	rb.SetAPIDomain("api.example.com")
+	rb.SetAPIBackend(host, port)
+	rb.AddRoute("app.example.com", nil, []Backend{{IP: host, Port: port}})
+	cfg, err := rb.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.UpdateConfig(cfg)
+	handler := p.httpsHandler()
+
+	r := httptest.NewRequest(http.MethodPost, "https://api.example.com/v1/images/upload", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || w.Body.String() != "done" {
+		t.Fatalf("API request: status = %d body = %q, want slow control-plane response to be delivered", w.Code, w.Body.String())
+	}
+
+	// The same slow backend behind an app route still trips the app timeout.
+	r = httptest.NewRequest(http.MethodGet, "https://app.example.com/", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusBadGateway {
+		t.Errorf("app request: status = %d, want %d from the app response header timeout", w.Code, http.StatusBadGateway)
+	}
+}
