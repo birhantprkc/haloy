@@ -574,3 +574,108 @@ func TestProxyToAPIBackend_NotBoundByAppResponseHeaderTimeout(t *testing.T) {
 		t.Errorf("app request: status = %d, want %d from the app response header timeout", w.Code, http.StatusBadGateway)
 	}
 }
+
+// newRedirectTestProxy builds a proxy with one route: example.com canonical,
+// www.example.com alias, and no backends (redirects happen before backend
+// selection, so none are needed).
+func newRedirectTestProxy(t *testing.T) *Proxy {
+	t.Helper()
+	p := newTestProxy()
+	rb := NewRouteBuilder()
+	rb.AddRoute("example.com", []string{"www.example.com"}, nil)
+	cfg, err := rb.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.UpdateConfig(cfg)
+	return p
+}
+
+func TestHTTPHandler_RedirectsAliasToCanonicalHTTPS(t *testing.T) {
+	p := newRedirectTestProxy(t)
+	handler := p.httpHandler()
+
+	tests := []struct {
+		name         string
+		url          string
+		wantLocation string
+	}{
+		{
+			name:         "alias redirects straight to canonical in one hop",
+			url:          "http://www.example.com/path?q=1",
+			wantLocation: "https://example.com/path?q=1",
+		},
+		{
+			name:         "canonical keeps host",
+			url:          "http://example.com/path?q=1",
+			wantLocation: "https://example.com/path?q=1",
+		},
+		{
+			name:         "alias host is case-insensitive and port is stripped",
+			url:          "http://WWW.Example.com:80/",
+			wantLocation: "https://example.com/",
+		},
+		{
+			name:         "unknown host keeps host",
+			url:          "http://unknown.test/x",
+			wantLocation: "https://unknown.test/x",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, tt.url, nil)
+			r.RemoteAddr = "203.0.113.9:44321"
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+
+			if w.Code != http.StatusMovedPermanently {
+				t.Fatalf("status = %d, want %d", w.Code, http.StatusMovedPermanently)
+			}
+			if got := w.Header().Get("Location"); got != tt.wantLocation {
+				t.Errorf("Location = %q, want %q", got, tt.wantLocation)
+			}
+		})
+	}
+
+	t.Run("ACME challenge on alias is not redirected", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "http://www.example.com/.well-known/acme-challenge/token", nil)
+		r.RemoteAddr = "203.0.113.9:44321"
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+
+		if w.Code == http.StatusMovedPermanently {
+			t.Errorf("ACME challenge was redirected (Location = %q), want it forwarded to the challenge server", w.Header().Get("Location"))
+		}
+	})
+}
+
+func TestHTTPSHandler_RedirectsAliasToCanonical(t *testing.T) {
+	p := newRedirectTestProxy(t)
+	handler := p.httpsHandler()
+
+	t.Run("alias redirects to canonical", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "https://www.example.com/path?q=1", nil)
+		r.RemoteAddr = "203.0.113.9:44321"
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+
+		if w.Code != http.StatusMovedPermanently {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusMovedPermanently)
+		}
+		if got, want := w.Header().Get("Location"), "https://example.com/path?q=1"; got != want {
+			t.Errorf("Location = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("canonical is not redirected to itself", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "https://example.com/path?q=1", nil)
+		r.RemoteAddr = "203.0.113.9:44321"
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+
+		if w.Code == http.StatusMovedPermanently {
+			t.Errorf("canonical host was redirected (Location = %q)", w.Header().Get("Location"))
+		}
+	})
+}
